@@ -1,9 +1,3 @@
-git commit -m "Add manual image upload feature and fallback styling"
-
-
-git push origin main
-
-
 import React from 'react';
 
 export function EditorPanel({
@@ -15,7 +9,6 @@ export function EditorPanel({
   onDownloadAll,
   onDownloadSingle,
 }) {
-  // 画像ファイルをBase64に変換してセットする処理
   const handleImageUpload = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -31,7 +24,6 @@ export function EditorPanel({
     reader.readAsDataURL(file);
   };
 
-  // 画像をリセット（削除）する処理
   const handleClearImage = () => {
     onChange({
       ...deck,
@@ -192,4 +184,3 @@ export function EditorPanel({
     </div>
   );
 }
-s
