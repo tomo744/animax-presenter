@@ -1,73 +1,49 @@
-const BASE = 'https://api.jikan.moe/v4';
-
-async function fetchJson(url, attempts = 3) {
-  let lastError;
-  for (let i = 0; i < attempts; i += 1) {
-    try {
-      const res = await fetch(url);
-      if (res.status === 429 || res.status >= 500) {
-        lastError = new Error(`Jikan API error: ${res.status}`);
-        await wait(400 * (i + 1));
-        continue;
-      }
-      if (!res.ok) {
-        throw new Error(`Jikan API error: ${res.status}`);
-      }
-      return res.json();
-    } catch (err) {
-      lastError = err;
-      await wait(400 * (i + 1));
-    }
+// CORS制限を回避してポスター画像をBase64形式に変換する関数
+export async function posterToDataUrl(url) {
+  if (!url) return '';
+  try {
+    // プロキシを経由させてCORSエラーを回避
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const res = await fetch(proxyUrl);
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.error('Poster convert failed:', e);
+    return '';
   }
-  throw lastError;
-}
-
-function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function searchAnime(query) {
-  const q = query.trim();
-  if (q.length < 1) return [];
-
-  const url = `${BASE}/anime?q=${encodeURIComponent(q)}&limit=8&sfw=true`;
-  const json = await fetchJson(url);
-  return (json.data ?? []).map((item) => ({
-    malId: item.mal_id,
-    title: item.title_japanese || item.title,
-    titleEnglish: item.title_english || item.title,
-    titleRaw: item.title,
-    year: item.year || item.aired?.prop?.from?.year || null,
-    score: item.score,
-    synopsis: item.synopsis || '',
-    genres: (item.genres ?? []).map((g) => g.name),
-    posterUrl:
-      item.images?.jpg?.large_image_url ||
-      item.images?.jpg?.image_url ||
-      '',
-  }));
-}
-
-/** MAL CDN は canvas CORS で失敗しやすいため、書き出し用に data URL 化する */
-export async function posterToDataUrl(posterUrl) {
-  if (!posterUrl) return '';
-  const stripped = posterUrl.replace(/^https?:\/\//, '');
-  const proxy = `https://wsrv.nl/?url=${encodeURIComponent(stripped)}&w=720&output=jpg`;
-  try {
-    const res = await fetch(proxy);
-    if (!res.ok) return posterUrl;
-    const blob = await res.blob();
-    return await blobToDataUrl(blob);
-  } catch {
-    return posterUrl;
+  if (!query) return [];
+  const url = `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=3`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error('API Error');
   }
+  const json = await res.json();
+  const list = json.data || [];
+
+  // 各アニメのポスター画像をCORS対応形式に変換して渡す
+  const formatted = await Promise.all(
+    list.map(async (item) => {
+      const origPoster = item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '';
+      const dataUrl = await posterToDataUrl(origPoster);
+      return {
+        id: item.mal_id,
+        title: item.title_japanese || item.title,
+        posterUrl: origPoster,
+        posterDataUrl: dataUrl || origPoster,
+        score: item.score,
+        synopsis: item.synopsis,
+      };
+    })
+  );
+
+  return formatted;
 }
 
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
