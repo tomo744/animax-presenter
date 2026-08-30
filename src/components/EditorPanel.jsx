@@ -1,4 +1,4 @@
-git commit -m "Fix CORS issue with poster image proxy"
+git commit -m "Add manual image upload feature and fallback styling"
 
 
 git push origin main
@@ -17,7 +17,7 @@ export function EditorPanel({
 }) {
   // 画像ファイルをBase64に変換してセットする処理
   const handleImageUpload = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files && e.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
@@ -31,7 +31,7 @@ export function EditorPanel({
     reader.readAsDataURL(file);
   };
 
-  // 画像を消去する処理
+  // 画像をリセット（削除）する処理
   const handleClearImage = () => {
     onChange({
       ...deck,
@@ -43,34 +43,37 @@ export function EditorPanel({
   const themes = ['#ff4d8d', '#4deeea', '#74ee15', '#ffe700', '#f368e0', '#ff9f43'];
 
   return (
-    <div className="editor-panel">
+    <div className="editor-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div className="form-group">
-        <label>アニメ作品名</label>
+        <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>アニメ作品名</label>
         <input
           type="text"
           value={deck.title || ''}
           onChange={(e) => onChange({ ...deck, title: e.target.value })}
           placeholder="例: 進撃の巨人"
+          style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #444', background: '#1e1e24', color: '#fff', boxSizing: 'border-box' }}
         />
       </div>
 
-      <div className="form-group">
-        <label>背景ポスター画像（アップロード）</label>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+      <div className="form-group" style={{ background: '#181820', padding: '12px', borderRadius: '8px', border: '1px solid #333' }}>
+        <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: '#ff4d8d', fontWeight: 'bold' }}>
+          背景ポスター画像（アップロード）
+        </label>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <input
             type="file"
             accept="image/*"
             onChange={handleImageUpload}
-            style={{ fontSize: '12px', color: '#fff' }}
+            style={{ fontSize: '12px', color: '#ccc' }}
           />
-          {deck.posterDataUrl && (
+          {(deck.posterDataUrl || deck.posterUrl) && (
             <button
               type="button"
               onClick={handleClearImage}
               style={{
-                padding: '4px 8px',
+                padding: '4px 10px',
                 fontSize: '12px',
-                background: '#444',
+                background: '#e53e3e',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '4px',
@@ -84,34 +87,37 @@ export function EditorPanel({
       </div>
 
       <div className="form-group">
-        <label>1. ここが最高</label>
+        <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>1. ここが最高</label>
         <textarea
           value={deck.peak || ''}
           onChange={(e) => onChange({ ...deck, peak: e.target.value })}
           rows={3}
+          style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #444', background: '#1e1e24', color: '#fff', boxSizing: 'border-box' }}
         />
       </div>
 
       <div className="form-group">
-        <label>2. 推しキャラ / シーン</label>
+        <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>2. 推しキャラ / シーン</label>
         <textarea
           value={deck.oshi || ''}
           onChange={(e) => onChange({ ...deck, oshi: e.target.value })}
           rows={3}
+          style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #444', background: '#1e1e24', color: '#fff', boxSizing: 'border-box' }}
         />
       </div>
 
       <div className="form-group">
-        <label>3. 一言でいうと</label>
+        <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>3. 一言でいうと</label>
         <textarea
           value={deck.oneLiner || ''}
           onChange={(e) => onChange({ ...deck, oneLiner: e.target.value })}
           rows={3}
+          style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #444', background: '#1e1e24', color: '#fff', boxSizing: 'border-box' }}
         />
       </div>
 
       <div className="form-group">
-        <label>背景テーマ色</label>
+        <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>背景テーマ色</label>
         <div className="color-picker" style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
           {themes.map((color) => (
             <button
@@ -119,11 +125,11 @@ export function EditorPanel({
               type="button"
               onClick={() => onChange({ ...deck, theme: color })}
               style={{
-                width: '28px',
-                height: '28px',
+                width: '32px',
+                height: '32px',
                 borderRadius: '50%',
                 backgroundColor: color,
-                border: deck.theme === color ? '2px solid #fff' : 'none',
+                border: deck.theme === color ? '3px solid #fff' : 'none',
                 cursor: 'pointer',
               }}
             />
@@ -131,26 +137,29 @@ export function EditorPanel({
         </div>
       </div>
 
-      <div className="action-buttons" style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+      <div className="action-buttons" style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
         <button
+          type="button"
           className="btn-primary"
           onClick={onGenerateAi}
           disabled={isAiLoading}
-          style={{ padding: '10px', borderRadius: '20px', background: '#ff4d8d', color: '#fff', border: 'none', cursor: 'pointer' }}
+          style={{ padding: '12px', borderRadius: '20px', background: '#ff4d8d', color: '#fff', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
         >
           {isAiLoading ? '生成中...' : 'AIで魅力を自動生成'}
         </button>
 
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
+            type="button"
             onClick={onSave}
-            style={{ flex: 1, padding: '8px', borderRadius: '15px', background: '#333', color: '#fff', border: '1px solid #555', cursor: 'pointer' }}
+            style={{ flex: 1, padding: '10px', borderRadius: '12px', background: '#2a2a32', color: '#fff', border: '1px solid #444', cursor: 'pointer' }}
           >
             ローカルに保存
           </button>
           <button
+            type="button"
             onClick={onDownloadAll}
-            style={{ flex: 1, padding: '8px', borderRadius: '15px', background: '#333', color: '#fff', border: '1px solid #555', cursor: 'pointer' }}
+            style={{ flex: 1, padding: '10px', borderRadius: '12px', background: '#2a2a32', color: '#fff', border: '1px solid #444', cursor: 'pointer' }}
           >
             3枚を画像でダウンロード
           </button>
@@ -158,20 +167,23 @@ export function EditorPanel({
 
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
+            type="button"
             onClick={() => onDownloadSingle(1)}
-            style={{ flex: 1, padding: '6px', borderRadius: '12px', background: '#222', color: '#aaa', border: '1px solid #444', cursor: 'pointer' }}
+            style={{ flex: 1, padding: '8px', borderRadius: '8px', background: '#1a1a20', color: '#aaa', border: '1px solid #333', cursor: 'pointer' }}
           >
             1枚目のみ
           </button>
           <button
+            type="button"
             onClick={() => onDownloadSingle(2)}
-            style={{ flex: 1, padding: '6px', borderRadius: '12px', background: '#222', color: '#aaa', border: '1px solid #444', cursor: 'pointer' }}
+            style={{ flex: 1, padding: '8px', borderRadius: '8px', background: '#1a1a20', color: '#aaa', border: '1px solid #333', cursor: 'pointer' }}
           >
             2枚目のみ
           </button>
           <button
+            type="button"
             onClick={() => onDownloadSingle(3)}
-            style={{ flex: 1, padding: '6px', borderRadius: '12px', background: '#222', color: '#aaa', border: '1px solid #444', cursor: 'pointer' }}
+            style={{ flex: 1, padding: '8px', borderRadius: '8px', background: '#1a1a20', color: '#aaa', border: '1px solid #333', cursor: 'pointer' }}
           >
             3枚目のみ
           </button>
@@ -180,3 +192,4 @@ export function EditorPanel({
     </div>
   );
 }
+s
